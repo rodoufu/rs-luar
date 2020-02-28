@@ -18,7 +18,7 @@ impl<'a> Object<'a> {
 		}
 	}
 
-	fn add_child(&'a self, child: &'a Object<'a>) {
+	pub fn add_child(&'a self, child: &'a Object<'a>) {
 		if child.parent.clone().into_inner().is_some() {
 			let child_parent = child.parent.clone().into_inner().unwrap();
 			child_parent.remove_child(child);
@@ -30,7 +30,7 @@ impl<'a> Object<'a> {
 		self.children.replace(children);
 	}
 
-	fn remove_child(&self, child: &'a Object<'a>) {
+	pub fn remove_child(&self, child: &'a Object<'a>) {
 		let mut children = self.children.clone().into_inner();
 		let children_len = children.len();
 		children.retain(|x| **x != child);
@@ -41,11 +41,15 @@ impl<'a> Object<'a> {
 		}
 	}
 
-	fn world_translation(&self) -> (u32, u32) {
+	pub fn world_translation(&self) -> (u32, u32) {
 		match self.parent.borrow().as_ref() {
 			None => (self.x, self.y),
 			Some(parent) => (parent.x + self.x, parent.y + self.y),
 		}
+	}
+
+	fn number_of_children(&self) -> usize {
+		self.children.clone().into_inner().len()
 	}
 }
 
@@ -67,10 +71,14 @@ mod tests {
 
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((4, 3), child.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
 
 		parent.add_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((5, 5), child.world_translation());
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
 	}
 
 	#[test]
@@ -80,14 +88,20 @@ mod tests {
 
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((4, 3), child.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
 
 		parent.add_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((5, 5), child.world_translation());
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
 
 		parent.remove_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((4, 3), child.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
 	}
 
 	#[test]
@@ -99,21 +113,33 @@ mod tests {
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((4, 3), child.world_translation());
 		assert_eq!((10, 11), child2.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
 
 		parent.add_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((5, 5), child.world_translation());
 		assert_eq!((10, 11), child2.world_translation());
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
 
 		parent.remove_child(&child2);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((5, 5), child.world_translation());
 		assert_eq!((10, 11), child2.world_translation());
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
 
 		parent.remove_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((4, 3), child.world_translation());
 		assert_eq!((10, 11), child2.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
 	}
 
 	#[test]
@@ -125,20 +151,34 @@ mod tests {
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((4, 3), child.world_translation());
 		assert_eq!((10, 11), parent2.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, parent2.number_of_children());
 
 		parent.add_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((5, 5), child.world_translation());
 		assert_eq!((10, 11), parent2.world_translation());
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, parent2.number_of_children());
 
 		parent2.add_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
-		assert_eq!((15, 16), child.world_translation());
+		assert_eq!((14, 14), child.world_translation());
 		assert_eq!((10, 11), parent2.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(1, parent2.number_of_children());
 
 		parent2.remove_child(&child);
 		assert_eq!((1, 2), parent.world_translation());
 		assert_eq!((4, 3), child.world_translation());
 		assert_eq!((10, 11), parent2.world_translation());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, parent2.number_of_children());
 	}
+
+	// TODO Add grand_child test
 }
