@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::cell::RefCell;
 
 trait ObjectInterface {
 	fn add_child(&self, child: &dyn ObjectInterface);
@@ -6,12 +7,13 @@ trait ObjectInterface {
 	fn world_translation(&self) -> (u32, u32);
 }
 
-#[derive(Clone, Debug, Default, Hash, PartialEq, Eq)]
+//Hash,
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Object {
 	x: u32,
 	y: u32,
-	children: Vec<Box<Object>>,
-	parent: Option<Box<Object>>,
+	children: RefCell<Vec<Box<Object>>>,
+	parent: RefCell<Option<Box<Object>>>,
 }
 
 impl Object {
@@ -19,29 +21,34 @@ impl Object {
 		Self {
 			x,
 			y,
-			children: Vec::new(),
-			parent: None,
+			children: RefCell::new(Vec::new()),
+			parent: RefCell::new(None),
 		}
 	}
+}
 
-	pub fn world_translation(&self) -> (u32, u32) {
-		match &self.parent {
+impl ObjectInterface for Object {
+	fn add_child(&self, child: &dyn ObjectInterface) {
+//		child.parent = Some(Box::new(*self));
+//		self.children.push(Box::new(child));
+	}
+
+	fn remove_child(&self, child: &dyn ObjectInterface) {}
+
+	fn world_translation(&self) -> (u32, u32) {
+		match self.parent.borrow().as_ref() {
 			None => (self.x, self.y),
 			Some(parent) => (parent.x + self.x, parent.y + self.y),
 		}
 	}
-
-	pub fn add_child(&mut self, child: Object) {
-//		child.parent = Some(Box::new(*self));
-		self.children.push(Box::new(child));
-	}
-
-	pub fn remove_child(&self, child: Object) {}
 }
 
 #[cfg(test)]
 mod tests {
-	use crate::object::Object;
+	use crate::object::{
+		Object,
+		ObjectInterface,
+	};
 
 	#[test]
 	fn world_translation_no_parent() {
