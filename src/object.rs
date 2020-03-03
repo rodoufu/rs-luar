@@ -44,13 +44,18 @@ impl<'a> Object<'a> {
 	pub fn world_translation(&self) -> (u32, u32) {
 		match self.parent.borrow().as_ref() {
 			None => (self.x, self.y),
-			Some(parent) => (parent.x + self.x, parent.y + self.y),
+			Some(parent) => {
+				let (parent_x, parent_y) = parent.world_translation();
+				(parent_x + self.x, parent_y + self.y)
+			},
 		}
 	}
 
 	fn number_of_children(&self) -> usize {
 		self.children.clone().into_inner().len()
 	}
+
+	fn has_parent(&self) -> bool { self.parent.clone().into_inner().is_some() }
 }
 
 #[cfg(test)]
@@ -180,5 +185,32 @@ mod tests {
 		assert_eq!(0, parent2.number_of_children());
 	}
 
-	// TODO Add grand_child test
+	#[test]
+	fn world_translation_with_grand_parent() {
+		let grand_parent = Object::new(7, 11);
+		let parent = Object::new(1, 2);
+		let child = Object::new(4, 9);
+
+		assert_eq!((7, 11), grand_parent.world_translation());
+		assert_eq!((1, 2), parent.world_translation());
+		assert_eq!((4, 9), child.world_translation());
+		assert_eq!(0, grand_parent.number_of_children());
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert!(!grand_parent.has_parent());
+		assert!(!parent.has_parent());
+		assert!(!child.has_parent());
+
+		grand_parent.add_child(&parent);
+		parent.add_child(&child);
+		assert_eq!((7, 11), grand_parent.world_translation());
+		assert_eq!((8, 13), parent.world_translation());
+		assert_eq!((12, 22), child.world_translation());
+		assert_eq!(1, grand_parent.number_of_children());
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert!(!grand_parent.has_parent());
+		assert!(parent.has_parent());
+		assert!(child.has_parent());
+	}
 }
