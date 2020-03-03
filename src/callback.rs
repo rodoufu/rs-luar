@@ -1,12 +1,14 @@
 use std::rc::Rc;
 
+type CallbackHandler = Rc<()>;
+
 #[derive(Default)]
 pub struct CallbackManager {
 	manager: CallbackRegistry<()>,
 }
 
 impl CallbackManager {
-	pub fn add(&mut self, callback: Box<dyn Fn()>) -> Rc<()> {
+	pub fn add(&mut self, callback: Box<dyn Fn()>) -> CallbackHandler {
 		self.manager.add(Box::new(move |_| callback()))
 	}
 
@@ -21,11 +23,11 @@ impl CallbackManager {
 #[derive(Default)]
 pub struct CallbackRegistry<ParamType: Copy> {
 	/// It is using a Box for the futures here cause the vector needs a sized type.
-	callbacks: Vec<(Box<dyn Fn(ParamType)>, Rc<()>)>,
+	callbacks: Vec<(Box<dyn Fn(ParamType)>, CallbackHandler)>,
 }
 
 impl<ParamType: Copy> CallbackRegistry<ParamType> {
-	pub fn add(&mut self, callback: Box<dyn Fn(ParamType)>) -> Rc<()> {
+	pub fn add(&mut self, callback: Box<dyn Fn(ParamType)>) -> CallbackHandler {
 		let resp = Rc::new(());
 		self.callbacks.push((callback, resp.clone()));
 		resp
