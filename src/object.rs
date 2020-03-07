@@ -1,6 +1,11 @@
 use std::cell::RefCell;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Object with 2D translation information.
+///
+/// If the `Object` contains itself it would be impossible the determinate its size, this makes
+/// necessary to use a pointer to `Object`, here it is used a `Box` of a reference to `Object`,
+/// which is going to make the children and parent to be heap allocated.
+#[derive(PartialEq, Eq)]
 pub struct Object<'a> {
 	x: u32,
 	y: u32,
@@ -9,6 +14,8 @@ pub struct Object<'a> {
 }
 
 impl<'a> Object<'a> {
+	/// Creates a new object for the translation.
+	/// Encapsulates the internal logic of the object creation.
 	pub fn new(x: u32, y: u32) -> Self {
 		Self {
 			x,
@@ -18,6 +25,7 @@ impl<'a> Object<'a> {
 		}
 	}
 
+	/// Adds `child` as a new child of object.
 	pub fn add_child(&'a self, child: &'a Object<'a>) {
 		if child.parent.clone().into_inner().is_some() {
 			let child_parent = child.parent.clone().into_inner().unwrap();
@@ -30,6 +38,7 @@ impl<'a> Object<'a> {
 		self.children.replace(children);
 	}
 
+	/// Removes the `child` from the object children.
 	pub fn remove_child(&self, child: &'a Object<'a>) {
 		let mut children = self.children.clone().into_inner();
 		let children_len = children.len();
@@ -41,21 +50,32 @@ impl<'a> Object<'a> {
 		}
 	}
 
+	/// The translation of the object relative to the position of its container (parent) in case
+	/// it exists.
 	pub fn world_translation(&self) -> (u32, u32) {
 		match self.parent.borrow().as_ref() {
-			None => (self.x, self.y),
+			None => self.translation(),
 			Some(parent) => {
 				let (parent_x, parent_y) = parent.world_translation();
 				(parent_x + self.x, parent_y + self.y)
-			},
+			}
 		}
 	}
 
+	/// The translation of the object itself.
+	pub fn translation(&self) -> (u32, u32) {
+		(self.x, self.y)
+	}
+
+	/// The number of children of the object.
 	fn number_of_children(&self) -> usize {
 		self.children.clone().into_inner().len()
 	}
 
-	fn has_parent(&self) -> bool { self.parent.clone().into_inner().is_some() }
+	/// Indicates if the object has a parent.
+	fn has_parent(&self) -> bool {
+		self.parent.clone().into_inner().is_some()
+	}
 }
 
 #[cfg(test)]
@@ -67,6 +87,97 @@ mod tests {
 		assert_eq!((0, 0), Object::new(0, 0).world_translation());
 		assert_eq!((0, 1), Object::new(0, 1).world_translation());
 		assert_eq!((3, 1), Object::new(3, 1).world_translation());
+	}
+
+	#[test]
+	fn add_same_child_twice() {
+		let parent = Object::new(1, 2);
+		let child = Object::new(4, 3);
+
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(!child.has_parent());
+
+		parent.add_child(&child);
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(child.has_parent());
+
+		parent.add_child(&child);
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(child.has_parent());
+	}
+
+	#[test]
+	fn add_a_child_that_looks_the_same() {
+		let parent = Object::new(1, 2);
+		let child = Object::new(4, 3);
+		let child2 = Object::new(4, 3);
+
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(!child.has_parent());
+		assert!(!child2.has_parent());
+
+		parent.add_child(&child);
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(child.has_parent());
+		assert!(!child2.has_parent());
+
+		parent.add_child(&child2);
+		assert_eq!(2, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(child.has_parent());
+		assert!(child2.has_parent());
+	}
+
+	#[test]
+	fn remove_a_child_that_looks_the_same() {
+		let parent = Object::new(1, 2);
+		let child = Object::new(4, 3);
+		let child2 = Object::new(4, 3);
+
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(!child.has_parent());
+		assert!(!child2.has_parent());
+
+		parent.add_child(&child);
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(child.has_parent());
+		assert!(!child2.has_parent());
+
+		parent.remove_child(&child2);
+		assert_eq!(1, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(child.has_parent());
+		assert!(!child2.has_parent());
+
+		parent.remove_child(&child);
+		assert_eq!(0, parent.number_of_children());
+		assert_eq!(0, child.number_of_children());
+		assert_eq!(0, child2.number_of_children());
+		assert!(!parent.has_parent());
+		assert!(!child.has_parent());
+		assert!(!child2.has_parent());
 	}
 
 	#[test]

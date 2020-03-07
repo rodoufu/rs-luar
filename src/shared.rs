@@ -3,13 +3,20 @@ use std::cell::RefCell;
 use std::iter::IntoIterator;
 use std::rc::Rc;
 
+/// The `Shared` object.
 pub struct Shared<T> {
 	data: Rc<RefCell<T>>,
 }
 
+/// Implements the IntoIterator for `&'a Shared<T>` considering `T` as a `IntoIterator`.
+///
+/// The `T` parameter adds the restriction that it needs to implement `Clone`, the reason for that
+/// is that the `into_iter()` consumes the object which would move the value from `RefCell<T>`
+///
+/// The `iter` feature makes possible to switch between the implementation using `Iterator` and
+/// `IntoIterator` for the parameter type `T`.
 #[cfg(not(feature = "iter"))]
-//#[cfg(feature = "iter")]
-impl<'a, K, T: IntoIterator<Item=K>> IntoIterator for &'a Shared<T>
+impl<'a, K, T> IntoIterator for &'a Shared<T>
 	where T: IntoIterator<Item=K> + Clone {
 	type Item = K;
 	type IntoIter = T::IntoIter;
@@ -20,8 +27,15 @@ impl<'a, K, T: IntoIterator<Item=K>> IntoIterator for &'a Shared<T>
 	}
 }
 
+/// Implements the IntoIterator for `&'a Shared<T>` considering `T` as a `Iterator`.
+///
+/// The `T` parameter adds the restriction that it needs to implement `Clone`, the reason for that
+/// is that the `into_iter()` consumes the object which would move the value from `RefCell<T>`
+///
+/// The `iter` feature makes possible to switch between the implementation using `Iterator` and
+/// `IntoIterator` for the parameter type `T`.
 #[cfg(feature = "iter")]
-impl<'a, K, T: Iterator<Item=K>> IntoIterator for &'a Shared<T>
+impl<'a, K, T> IntoIterator for &'a Shared<T>
 	where T: Iterator<Item=K> + Clone {
 	type Item = K;
 	type IntoIter = T;
@@ -40,6 +54,7 @@ mod tests {
 	use std::cell::RefCell;
 	use std::borrow::Borrow;
 
+	/// Simple implementation of an `Iterator` that counts from 1 to 3.
 	#[derive(Clone, Debug, Default, PartialEq, Eq)]
 	struct Test {
 		value: u32

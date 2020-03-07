@@ -1,25 +1,39 @@
 use std::rc::Rc;
 
+/// Wrapper for the callback handler
+///
+/// This handler only uses a Rc for () but the CallbackHandler is defined so the implementation
+/// details can be decoupled.
+///
+/// The `Rc` automatically handles the drop situation so the CallbackManager only needs to check
+/// the number of strong references.
 type CallbackHandler = Rc<()>;
 
+/// Saves the callbacks and execute then when requested.
 #[derive(Default)]
 pub struct CallbackManager {
 	manager: CallbackRegistry<()>,
 }
 
 impl CallbackManager {
+	/// The `add` method accepts a closure with no arguments and returns an handler.
+	/// Once the handler is dropped the closure will not be executed anymore.
+	/// The mutability on self is expected cause a closure is being added.
 	pub fn add(&mut self, callback: Box<dyn Fn()>) -> CallbackHandler {
 		self.manager.add(Box::new(move |_| callback()))
 	}
 
+	/// The `run_all` method runs all the closures if their handler was not dropped it.
+	/// The mutability on self is expected cause any closure which had his handler dropped will
+	/// also be dropped.
 	pub fn run_all(&mut self) {
 		self.manager.run_all(())
 	}
 }
 
-///
 /// CallbackRegistry tracks callbacks and then call all then when requested.
-///
+/// This implementation accepts one parameter.
+/// The `ParamType` needs to implement `Copy` cause it is going to be sent to all the callbacks.
 #[derive(Default)]
 pub struct CallbackRegistry<ParamType: Copy> {
 	/// It is using a Box for the futures here cause the vector needs a sized type.
@@ -27,12 +41,18 @@ pub struct CallbackRegistry<ParamType: Copy> {
 }
 
 impl<ParamType: Copy> CallbackRegistry<ParamType> {
+	/// The `add` method accepts a closure with with a parameter and returns an handler.
+	/// Once the handler is dropped the closure will not be executed anymore.
+	/// The mutability on self is expected cause a closure is being added.
 	pub fn add(&mut self, callback: Box<dyn Fn(ParamType)>) -> CallbackHandler {
 		let resp = Rc::new(());
 		self.callbacks.push((callback, resp.clone()));
 		resp
 	}
 
+	/// The `run_all` method runs all the closures if their handler was not dropped it.
+	/// The mutability on self is expected cause any closure which had his handler dropped will
+	/// also be dropped.
 	pub fn run_all(&mut self, param: ParamType) {
 		self.callbacks.retain(
 			|(_, handler)| Rc::strong_count(handler) > 1);
